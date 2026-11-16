@@ -1,5 +1,3 @@
-> **This project has moved to [testomut/playwright](https://github.com/testomut/playwright/tree/main/js/wikipedia-language-aqa)**, together with its full history. This repository is archived and kept read-only so existing links keep working.
-
 # Wikipedia Interface Language Switch — AQA Test Task
 
 End-to-end automated test verifying that an authorised Wikipedia user can change the interface language in **Special:Preferences** (`Playwright` + `TypeScript`, `Docker`).
