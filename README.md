@@ -26,7 +26,9 @@ End-to-end automated test verifying that an authorised Wikipedia user can change
 ## Project Structure
 
 ```text
+├── .auth/                               # Saved session (storageState), created by the setup project, git-ignored
 ├── fixtures/
+│   ├── auth.ts                          # Test accounts (one per worker) and their session file paths
 │   └── fixtures.ts                      # Custom Playwright fixtures (credentials, Page Objects, WikiApi, userSession, defLang)
 ├── pages/
 │   ├── BasePage.ts                      # Custom actions (customClick, customFill, navigate) & common assertions
@@ -34,6 +36,7 @@ End-to-end automated test verifying that an authorised Wikipedia user can change
 │   ├── MainPage.ts                      # Main_Page navigation & assertions
 │   └── PreferencesPage.ts               # Special:Preferences navigation, Codex language select & save
 ├── tests/
+│   ├── auth.setup.ts                    # Setup project: logs in every account via the UI and saves its storageState
 │   └── change-interface-language.spec.ts # TC-01 test specification
 ├── utils/
 │   └── WikiApi.ts                       # MediaWiki Action API helper for setup, teardown & i18n messages
@@ -48,6 +51,12 @@ End-to-end automated test verifying that an authorised Wikipedia user can change
 ---
 
 ## Key Design Decisions
+
+- **Log in once per account, one account per worker (`storageState`):**
+  - The `setup` project (`tests/auth.setup.ts`) loops over the test accounts, logs each one in through the UI once per run and saves its cookies to `.auth/user-<N>.json`.
+  - The `chromium` project depends on `setup`; the `storageState` and `credentials` fixtures pick account `N` by the worker's `parallelIndex`, so every test starts already authorised and login is not repeated per test.
+  - The test changes a server-side account preference, so parallel workers must not share an account: `workers` equals the number of configured accounts (`WIKI_USERS`, or the single `WIKI_USERNAME` account).
+  - The `userSession` fixture checks the restored session via the API (`meta=userinfo`) and fails fast with a clear message if it expired; `defLang` depends on `userSession`, so API setup never runs anonymously.
 
 - **UI for the system under test, API for state & oracles:**
   - The language change itself is performed strictly through the UI (User Menu -> Preferences -> Language combobox -> Save).
@@ -95,6 +104,7 @@ WIKI_BASE_URL=https://en.wikipedia.org
 | :--- | :---: | :--- | :--- |
 | `WIKI_USERNAME` | **Yes** | — | Wikipedia account username |
 | `WIKI_PASSWORD` | **Yes** | — | Wikipedia account password |
+| `WIKI_USERS` | No | — | JSON list of accounts for parallel runs, one per worker (overrides `WIKI_USERNAME` / `WIKI_PASSWORD`) |
 | `TARGET_LANGUAGE` | No | `uk` | Target MediaWiki language code (`uk`, `de`, `pl`, etc.) |
 | `WIKI_BASE_URL` | No | `https://en.wikipedia.org` | Target MediaWiki instance URL |
 

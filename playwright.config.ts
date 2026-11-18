@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { defineConfig, devices } from '@playwright/test';
+import { loadAccounts } from './fixtures/auth';
 
 export default defineConfig({
   testDir: './tests',
@@ -8,7 +9,8 @@ export default defineConfig({
     timeout: 10 * 1000,
   },
   fullyParallel: false,
-  workers: 1,
+  // Each worker needs its own account, because the test changes account preferences.
+  workers: Math.max(1, loadAccounts().length),
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: [
@@ -24,7 +26,13 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
       name: 'chromium',
+      dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },
   ],

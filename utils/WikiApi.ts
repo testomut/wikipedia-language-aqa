@@ -25,6 +25,18 @@ export class WikiApi {
     expect(body?.options, `action=options result: ${JSON.stringify(body)}`).toBe('success');
   }
 
+  async expectLoggedInAs(username: string): Promise<void> {
+    const response = await this.request.get('/w/api.php', {
+      params: { action: 'query', meta: 'userinfo', format: 'json' },
+    });
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    expect(
+      body?.query?.userinfo?.name,
+      'Session from storageState is logged in (anonymous means the saved session expired)',
+    ).toBe(username);
+  }
+
   async getOption(name: string): Promise<string | undefined> {
     const response = await this.request.get('/w/api.php', {
       params: { action: 'query', meta: 'userinfo', uiprop: 'options', format: 'json' },

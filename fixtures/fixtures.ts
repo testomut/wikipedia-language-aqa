@@ -4,9 +4,9 @@ import { MainPage } from '../pages/MainPage';
 import { PreferencesPage } from '../pages/PreferencesPage';
 import { WikiApi } from '../utils/WikiApi';
 
-export const DEFAULT_LANGUAGE = 'en';
+import { accountFor, authFile, type Credentials } from './auth';
 
-type Credentials = { username: string; password: string };
+export const DEFAULT_LANGUAGE = 'en';
 
 type Fixtures = {
   credentials: Credentials;
@@ -19,13 +19,12 @@ type Fixtures = {
 };
 
 export const test = base.extend<Fixtures>({
-  credentials: async ({ }, use) => {
-    const username = process.env.WIKI_USERNAME;
-    const password = process.env.WIKI_PASSWORD;
-    if (!username || !password) {
-      throw new Error('WIKI_USERNAME and WIKI_PASSWORD must be set (see .env.example).');
-    }
-    await use({ username, password });
+  // One account per worker: the worker with parallelIndex N uses account N and its saved session.
+  credentials: async ({ }, use, testInfo) => {
+    await use(accountFor(testInfo.parallelIndex));
+  },
+  storageState: async ({ }, use, testInfo) => {
+    await use(authFile(testInfo.parallelIndex));
   },
   loginPage: async ({ page }, use) => {
     await use(new LoginPage(page));
@@ -39,18 +38,20 @@ export const test = base.extend<Fixtures>({
   wikiApi: async ({ page }, use) => {
     await use(new WikiApi(page.request));
   },
-  userSession: async ({ loginPage, credentials }, use) => {
-    await test.step(`Precondition: log in as "${credentials.username}"`, async () => {
-      await loginPage.open();
-      await loginPage.login(credentials.username, credentials.password);
-    });
+  userSession: async ({ wikiApi, credentials }, use) => {
+    await test.step(
+      `Precondition: session of "${credentials.username}" is restored from storageState`,
+      async () => {
+        await wikiApi.expectLoggedInAs(credentials.username);
+      },
+    );
 
     await use(credentials.username);
   },
-  defLang: async ({ wikiApi }, use) => {
+  defLang: async ({ wikiApi, userSession }, use) => {
     try {
       await test.step(
-        `Precondition: reset interface language to "${DEFAULT_LANGUAGE}" via API`,
+        `Precondition: reset interface language of "${userSession}" to "${DEFAULT_LANGUAGE}" via API`,
         async () => {
           await wikiApi.setOption('language', DEFAULT_LANGUAGE);
         },
