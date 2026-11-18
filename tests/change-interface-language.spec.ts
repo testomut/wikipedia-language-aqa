@@ -13,6 +13,7 @@ test.describe('Preferences: interface language', () => {
     const expectedHeading = await wikiApi.message('preferences', TARGET_LANGUAGE);
 
     await test.step('1. Open Preferences from the user menu', async () => {
+      await mainPage.open();
       await mainPage.expectLoggedInAs(userSession);
       await preferencesPage.openFromUserMenu();
       await preferencesPage.expectInterfaceLanguage(defLang);

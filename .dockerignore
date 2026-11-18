@@ -5,3 +5,4 @@ blob-report
 .git
 .env
 
+.auth
